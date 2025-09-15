@@ -22,15 +22,13 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
 import { EWebPartPropertyRow, IWebPartPropertyRow } from "./type";
 
-export interface ISpFxWebpartPropertiesToolsProps {
+export interface IWebpartSettingProps {
   context: WebPartContext;
 }
 
 type MessageType = { type: "info" | "error" | "success"; text: string };
 
-export const SpFxWebpartPropertiesTools: React.FC<
-  ISpFxWebpartPropertiesToolsProps
-> = ({ context }) => {
+export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<MessageType | null>(null);
   const [searchKey, setSearchKey] = useState("");
@@ -530,4 +528,4 @@ export const SpFxWebpartPropertiesTools: React.FC<
   );
 };
 
-export default SpFxWebpartPropertiesTools;
+export default WebpartSetting;
