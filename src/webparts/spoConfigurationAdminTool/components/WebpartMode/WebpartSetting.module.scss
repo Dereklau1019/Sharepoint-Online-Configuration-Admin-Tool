@@ -1,0 +1,13 @@
+@import "~@fluentui/react/dist/sass/References.scss";
+// 全域樣式設定，覆蓋 SharePoint 工作區內容區域的最大寬度限制
+:global {
+  #workbenchPageContent,
+  .CanvasComponent.LCS .CanvasZone {
+    max-width: 100% !important; // 強制內容區塊寬度不超出容器
+  }
+}
+
+.webpartSetting {
+  display: flex;
+  position: relative;
+}

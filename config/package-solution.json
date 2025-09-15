@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "sharepoint-online-configuration-admin-tool-client-side-solution",
+    "id": "ce62be06-6725-4696-b194-d0f5681f2032",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Sharepoint-Online-Configuration-Admin-Tool description"
+      },
+      "longDescription": {
+        "default": "Sharepoint-Online-Configuration-Admin-Tool description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "sharepoint-online-configuration-admin-tool Feature",
+        "description": "The feature that activates elements of the sharepoint-online-configuration-admin-tool solution.",
+        "id": "8d04c1a9-0dfd-4c87-aaf6-d56499930a45",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/sharepoint-online-configuration-admin-tool.sppkg"
+  }
+}

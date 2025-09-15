@@ -1,0 +1,23 @@
+export enum EWebPartPropertyRow {
+  pageId = "pageId",
+  pageName = "pageName",
+  webpartDetails = "webpartDetails",
+  webpartId = "webpartId",
+  webPartType = "webPartType",
+  webpartName = "webpartName",
+  innerHtml = "innerHtml",
+  properties = "properties",
+  serverProcessedContent = "serverProcessedContent",
+}
+
+export interface IWebPartPropertyRow {
+  [EWebPartPropertyRow.pageId]?: string;
+  [EWebPartPropertyRow.pageName]?: string;
+  [EWebPartPropertyRow.webpartId]?: string;
+  [EWebPartPropertyRow.webPartType]?: string;
+  [EWebPartPropertyRow.webpartDetails]?: any;
+  [EWebPartPropertyRow.webpartName]?: string;
+  [EWebPartPropertyRow.innerHtml]?: string;
+  [EWebPartPropertyRow.properties]?: string;
+  [EWebPartPropertyRow.serverProcessedContent]?: string;
+}

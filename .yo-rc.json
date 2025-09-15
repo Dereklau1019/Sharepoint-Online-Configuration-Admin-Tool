@@ -1,0 +1,21 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "18.20.8",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.24.0"
+    },
+    "version": "1.20.0",
+    "libraryName": "sharepoint-online-configuration-admin-tool",
+    "libraryId": "ce62be06-6725-4696-b194-d0f5681f2032",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "Sharepoint-Online-Configuration-Admin-Tool",
+    "solutionShortDescription": "Sharepoint-Online-Configuration-Admin-Tool description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}
