@@ -29,15 +29,10 @@ import {
   PivotItem,
   Label,
 } from "@fluentui/react";
-import {
-  IPnpJsTesterProps,
-  pnpCategories,
-  pnpFunctions,
-  updatableListProperties,
-} from "./type";
+import { IPnpJsTesterProps, pnpCategories, pnpFunctions } from "./type";
 import EditableJsonList from "./EditableJsonList";
 
-const PnpJsTester: React.FC<IPnpJsTesterProps> = ({ context }) => {
+const PnpJsTester: React.FC<IPnpJsTesterProps> = ({ context, properties }) => {
   const [category, setCategory] = useState<
     | "web"
     | "lists"
@@ -113,7 +108,7 @@ const PnpJsTester: React.FC<IPnpJsTesterProps> = ({ context }) => {
     if (updatedData.Title) {
       const listTitle = updatedData.Title;
       const updateData = Object.fromEntries(
-        updatableListProperties.map((str) => [str, updatedData[str]])
+        properties.updatableListProperties.map((str) => [str, updatedData[str]])
       );
       await sp.web.lists.getByTitle(listTitle).update(updateData);
     }
@@ -718,6 +713,7 @@ console.log(result);`}
           >
             {response.data ? (
               <EditableJsonList
+                updatableListProperties={properties.updatableListProperties}
                 category={category}
                 data={editedData || JSON.stringify(response.data, null, 2)}
                 //onChange={handleEditChange}

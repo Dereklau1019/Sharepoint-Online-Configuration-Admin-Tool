@@ -7,9 +7,9 @@ import {
   IconButton,
   TextField,
 } from "@fluentui/react";
-import { EnsureUpdateProperties } from "./type";
 
 interface IEditableJsonListProps {
+  updatableListProperties: string[];
   category:
     | "web"
     | "lists"
@@ -37,6 +37,7 @@ interface IRow {
 }
 
 const EditableJsonList: React.FC<IEditableJsonListProps> = ({
+  updatableListProperties,
   category,
   data,
   onChange,
@@ -143,7 +144,7 @@ const EditableJsonList: React.FC<IEditableJsonListProps> = ({
       onRender: (_item: IRow, index?: number) => {
         if (index === undefined) return null;
         const row = rows[index];
-        if (!EnsureUpdateProperties.includes(row.key)) {
+        if (!updatableListProperties.includes(row.key)) {
           return (
             <Text
               styles={{

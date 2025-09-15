@@ -6,12 +6,14 @@ import GraphApiTester from "./GraphMode/GraphApiTester";
 import { useState } from "react";
 import PnpJsTester from "./PnpJsMode/PnpJsTester";
 import WebpartSetting from "./WebpartMode/WebpartSetting";
+import { ISpoConfigurationAdminToolWebPartProps } from "../SpoConfigurationAdminToolWebPart";
 
 export interface IAppProps {
   context: WebPartContext;
+  properties: ISpoConfigurationAdminToolWebPartProps;
 }
 
-const App: React.FC<IAppProps> = ({ context }) => {
+const App: React.FC<IAppProps> = ({ context, properties }) => {
   const [mode, setMode] = useState<"graph" | "pnpJs" | "webpart">("graph");
 
   const modes = [
@@ -45,19 +47,19 @@ const App: React.FC<IAppProps> = ({ context }) => {
 
       {mode === "graph" && (
         <Stack>
-          <GraphApiTester context={context} />
+          <GraphApiTester context={context} properties={properties} />
         </Stack>
       )}
 
       {mode === "pnpJs" && (
         <Stack>
-          <PnpJsTester context={context} />
+          <PnpJsTester context={context} properties={properties} />
         </Stack>
       )}
 
       {mode === "webpart" && (
         <Stack>
-          <WebpartSetting context={context} />
+          <WebpartSetting context={context} properties={properties} />
         </Stack>
       )}
     </Stack>

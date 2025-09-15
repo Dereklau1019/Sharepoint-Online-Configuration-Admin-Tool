@@ -11,12 +11,14 @@ import App, { IAppProps } from "./components/App";
 
 export interface ISpoConfigurationAdminToolWebPartProps {
   description: string;
+  updatableListProperties: string[];
 }
 
 export default class SpoConfigurationAdminToolWebPart extends BaseClientSideWebPart<ISpoConfigurationAdminToolWebPartProps> {
   public render(): void {
     const element: React.ReactElement<IAppProps> = React.createElement(App, {
       context: this.context,
+      properties: this.properties,
     });
 
     ReactDom.render(element, this.domElement);

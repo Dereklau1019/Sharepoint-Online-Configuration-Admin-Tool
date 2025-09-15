@@ -18,13 +18,12 @@ import {
   IconButton,
   SearchBox,
 } from "@fluentui/react";
-import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
-import { EWebPartPropertyRow, IWebPartPropertyRow } from "./type";
-
-export interface IWebpartSettingProps {
-  context: WebPartContext;
-}
+import {
+  EWebPartPropertyRow,
+  IWebPartPropertyRow,
+  IWebpartSettingProps,
+} from "./type";
 
 type MessageType = { type: "info" | "error" | "success"; text: string };
 

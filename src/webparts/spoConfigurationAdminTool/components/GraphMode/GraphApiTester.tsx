@@ -15,11 +15,7 @@ import {
   Spinner,
   SpinnerSize,
 } from "@fluentui/react";
-import { WebPartContext } from "@microsoft/sp-webpart-base";
-
-interface IGraphApiTesterProps {
-  context: WebPartContext;
-}
+import { IGraphApiTesterProps } from "./type";
 
 const graphMethods: IDropdownOption[] = [
   { key: "GET", text: "GET" },

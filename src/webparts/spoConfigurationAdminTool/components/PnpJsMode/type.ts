@@ -1,8 +1,10 @@
 import { IDropdownOption } from "@fluentui/react";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { ISpoConfigurationAdminToolWebPartProps } from "../../SpoConfigurationAdminToolWebPart";
 
 export interface IPnpJsTesterProps {
   context: WebPartContext;
+  properties: ISpoConfigurationAdminToolWebPartProps;
 }
 
 // 定義不同類別的 PnP JS 功能
@@ -205,20 +207,3 @@ export const pnpFunctions: Record<string, IDropdownOption[]> = {
     },
   ],
 };
-
-export const updatableListProperties: string[] = [
-  "Title", // 列表名稱
-  "Description", // 列表描述
-  "AllowContentTypes", // 是否允許內容類型
-  "ContentTypesEnabled", // 是否啟用內容類型
-  "Hidden", // 是否隱藏列表
-  "NoCrawl", // 是否允許被搜尋爬蟲索引
-  "OnQuickLaunch", // 是否顯示於側邊快速啟動列
-  "EnableVersioning", // 是否啟用版本管理
-  "EnableMinorVersions", // 是否啟用次要版本
-  "EnableModeration", // 是否啟用批准流程
-  "ValidationFormula", // 自訂資料驗證公式
-  "ValidationMessage", // 資料驗證失敗時提示訊息
-];
-
-export const EnsureUpdateProperties: string[] = [...updatableListProperties];

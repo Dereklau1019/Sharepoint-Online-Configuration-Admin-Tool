@@ -1,3 +1,11 @@
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { ISpoConfigurationAdminToolWebPartProps } from "../../SpoConfigurationAdminToolWebPart";
+
+export interface IWebpartSettingProps {
+  context: WebPartContext;
+  properties: ISpoConfigurationAdminToolWebPartProps;
+}
+
 export enum EWebPartPropertyRow {
   pageId = "pageId",
   pageName = "pageName",
