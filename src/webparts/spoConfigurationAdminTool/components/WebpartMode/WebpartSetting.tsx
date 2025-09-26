@@ -194,18 +194,18 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   };
 
   const replaceInJson = (obj: any, from: string, to: string): any => {
-    // ✅ 處理字串型別：進行全域替換
     if (typeof obj === "string") {
+      // ✅ 處理字串型別：進行全域替換
       return obj.replace(new RegExp(escapeForRegex(from), "g"), to);
     }
 
-    // ✅ 處理陣列：遞迴處理每個元素
     if (Array.isArray(obj)) {
+      // ✅ 處理陣列：遞迴處理每個元素
       return obj.map((item) => replaceInJson(item, from, to));
     }
 
-    // ✅ 處理物件：遞迴處理每個 key 對應的 value
     if (obj && typeof obj === "object") {
+      // ✅ 處理物件：遞迴處理每個 key 對應的 value
       return Object.fromEntries(
         Object.entries(obj).map(([key, value]) => [
           key,
@@ -213,9 +213,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         ])
       );
     }
-
-    // ✅ 其他型別 (數字、布林、null、undefined) 不變
-    return obj;
+    return obj; // ✅ 其他型別 (數字、布林、null、undefined) 不變
   };
 
   /** Replace values */
@@ -242,52 +240,77 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   /** Save All */
   const saveAllEditedValue = async () => {
     if (!editedRows.length) return;
-
+    let resultMessage = "";
     try {
       setLoading(true);
       const client = await getGraphClient();
 
       for (const item of editedRows) {
-        // 1️⃣ 更新 WebPart
-        const body = {
-          ...item.webpartDetails,
-          data: {
-            ...item.webpartDetails.data,
-            properties: item.properties
-              ? JSON.parse(item.properties)
-              : item.properties,
-            serverProcessedContent: item.serverProcessedContent
-              ? JSON.parse(item.serverProcessedContent)
-              : item.serverProcessedContent,
-          },
-          innerHtml: item.innerHtml,
-        };
+        try {
+          // 1️⃣ 更新 WebPart Body
+          const body = {
+            ...item.webpartDetails,
+            data: {
+              ...item.webpartDetails.data,
+              properties: item.properties
+                ? JSON.parse(item.properties)
+                : item.properties,
+              serverProcessedContent: item.serverProcessedContent
+                ? JSON.parse(item.serverProcessedContent)
+                : item.serverProcessedContent,
+            },
+            innerHtml: item.innerHtml,
+          };
 
-        await client
-          .api(
-            `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/webparts/${item.webpartId}`
-          )
-          .headers({ "Content-Type": "application/json" })
-          .update(body);
+          await client
+            .api(
+              `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/webparts/${item.webpartId}`
+            )
+            .headers({ "Content-Type": "application/json" })
+            .update(body);
 
-        await client
-          .api(
-            `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/publish`
-          )
-          .post({ comment: "Batch updated webparts." });
+          await client
+            .api(
+              `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/publish`
+            )
+            .post({ comment: "Batch updated webparts." });
+          resultMessage += `Edited webpart [${item.webpartName}] saved successfully.`;
+          showMessage(
+            "success",
+            `Edited webpart [${item.webpartName}] saved successfully.`
+          );
+        } catch (error) {
+          console.error(error);
+          resultMessage += `Failed to save webpart ${
+            item.webpartName
+          } changes: ${error.toString()}`;
+          showMessage(
+            "error",
+            `Failed to save webpart ${
+              item.webpartName
+            } changes: ${error.toString()}`
+          );
+        }
       }
-
       setEditedRows([]);
-      showMessage("success", "All edited values saved successfully.");
     } catch (err) {
       console.error(err);
-      showMessage("error", `Failed to save changes: ${String(err)}`);
+      resultMessage += `! ! !Failed to save changes : ${String(err)}`;
+      showMessage("error", `! ! !Failed to save changes: ${String(err)}`);
     } finally {
+      showMessage("success", resultMessage);
       setLoading(false);
     }
   };
 
-  /** Input / JSON 編輯變更處理 */
+  const normalizeJson = (value: string): string => {
+    try {
+      return JSON.stringify(JSON.parse(value));
+    } catch {
+      return value; // 不是 JSON → 原樣返回
+    }
+  };
+
   const handleFieldChange = (
     key: "properties" | "serverProcessedContent" | "innerHtml",
     newValue: string,
@@ -302,55 +325,35 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
     setEditedRows((prev) => {
       const existing = prev.find((r) => r.webpartId === item.webpartId);
 
-      // 如果不存在 → 新增
       if (!existing) {
         return [...prev, { ...item, [key]: newValue }];
       }
 
-      // 如果存在 → 檢查是否有變化
-      const hasChanged =
-        existing[key] !== newValue ||
-        existing.properties !== item.properties ||
-        existing.serverProcessedContent !== item.serverProcessedContent;
+      const oldValue = normalizeJson(existing[key]);
+      const newNorm = normalizeJson(newValue);
+
+      const hasChanged = oldValue !== newNorm;
 
       if (hasChanged) {
         return prev.map((r) =>
           r.webpartId === item.webpartId ? { ...r, [key]: newValue } : r
         );
       }
-      return prev; // 沒有變化 → 不更新
+
+      return prev;
     });
 
+    // ✅ 避免太頻繁提示，可以 debounce 或只在變更完成後提示
     showMessage("success", `Edited ${item.webpartName} (${item.webpartId}).`);
   };
 
   /** 列設定 */
   const columns: IColumn[] = [
-    { key: "pageUrl", name: "Page Url", fieldName: "pageUrl", minWidth: 100 },
-    { key: "pageId", name: "Page ID", fieldName: "pageId", minWidth: 100 },
-    {
-      key: "pageName",
-      name: "Page Name",
-      fieldName: "pageName",
-      minWidth: 100,
-    },
-    {
-      key: "webpartId",
-      name: "WebPart ID",
-      fieldName: "webpartId",
-      minWidth: 100,
-    },
-    {
-      key: "webpartName",
-      name: "WebPart Name",
-      fieldName: "webpartName",
-      minWidth: 80,
-    },
     {
       key: "innerHtml",
       name: "InnerHtml",
       fieldName: EWebPartPropertyRow.innerHtml,
-      minWidth: 250,
+      minWidth: 350,
       isMultiline: true,
       onRender: (item) => (
         <TextField
@@ -374,7 +377,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
       key: "properties",
       name: "Properties",
       fieldName: EWebPartPropertyRow.properties,
-      minWidth: 250,
+      minWidth: 350,
       isMultiline: true,
       onRender: (item) => (
         <ReactJson
@@ -444,6 +447,26 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         />
       ),
     },
+    { key: "pageUrl", name: "Page Url", fieldName: "pageUrl", minWidth: 100 },
+    { key: "pageId", name: "Page ID", fieldName: "pageId", minWidth: 100 },
+    {
+      key: "pageName",
+      name: "Page Name",
+      fieldName: "pageName",
+      minWidth: 100,
+    },
+    {
+      key: "webpartId",
+      name: "WebPart ID",
+      fieldName: "webpartId",
+      minWidth: 100,
+    },
+    {
+      key: "webpartName",
+      name: "WebPart Name",
+      fieldName: "webpartName",
+      minWidth: 80,
+    },
   ].map((c) => ({ ...c, isResizable: true }));
 
   /** 搜尋處理 */
@@ -453,13 +476,27 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
     () => filterArrayColumnByKeyword(rows, searchKey),
     [rows, searchKey, filterArrayColumnByKeyword]
   );
-  console.log("Filtered Rows", filtered);
-  console.log("Edited Rows", editedRows);
+  console.log("Edited Rows & Filtered Rows", editedRows, filtered);
   return (
     <Stack
       className={styles.webpartSetting}
       tokens={{ childrenGap: 12, padding: 16 }}
     >
+      {message && (
+        <MessageBar
+          styles={{ root: { zIndex: 10000 } }}
+          messageBarType={
+            message.type === "error"
+              ? MessageBarType.error
+              : message.type === "success"
+              ? MessageBarType.success
+              : MessageBarType.info
+          }
+          onDismiss={() => setMessage(null)}
+        >
+          {message.text}
+        </MessageBar>
+      )}
       {loading && (
         <Spinner
           styles={{
@@ -474,20 +511,6 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
           size={SpinnerSize.large}
           label="Working..."
         />
-      )}
-      {message && (
-        <MessageBar
-          messageBarType={
-            message.type === "error"
-              ? MessageBarType.error
-              : message.type === "success"
-              ? MessageBarType.success
-              : MessageBarType.info
-          }
-          onDismiss={() => setMessage(null)}
-        >
-          {message.text}
-        </MessageBar>
       )}
       <Stack
         horizontal
@@ -557,7 +580,6 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
           onClick={saveAllEditedValue}
         />
       </Stack>
-
       <Stack
         horizontal
         horizontalAlign="space-between"
