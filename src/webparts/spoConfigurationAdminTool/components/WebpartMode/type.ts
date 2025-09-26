@@ -7,6 +7,8 @@ export interface IWebpartSettingProps {
 }
 
 export enum EWebPartPropertyRow {
+  siteId = "siteId",
+  pageUrl = "pageUrl",
   pageId = "pageId",
   pageName = "pageName",
   webpartDetails = "webpartDetails",
@@ -19,6 +21,8 @@ export enum EWebPartPropertyRow {
 }
 
 export interface IWebPartPropertyRow {
+  [EWebPartPropertyRow.siteId]?: string;
+  [EWebPartPropertyRow.pageUrl]?: string;
   [EWebPartPropertyRow.pageId]?: string;
   [EWebPartPropertyRow.pageName]?: string;
   [EWebPartPropertyRow.webpartId]?: string;

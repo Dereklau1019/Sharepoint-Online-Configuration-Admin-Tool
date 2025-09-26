@@ -15,7 +15,6 @@ import {
   DetailsList,
   IColumn,
   Stack,
-  IconButton,
   SearchBox,
 } from "@fluentui/react";
 import { MSGraphClientV3 } from "@microsoft/sp-http";
@@ -31,14 +30,16 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<MessageType | null>(null);
   const [searchKey, setSearchKey] = useState("");
-  const [siteId, setSiteId] = useState("");
+
+  const [sites, setSites] = useState<IDropdownOption[]>([]);
+  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [pages, setPages] = useState<IWebPartPropertyRow[]>([]);
   const [pageOptions, setPageOptions] = useState<IDropdownOption[]>([]);
   const [selectedPageId, setSelectedPageId] = useState("ALL");
   const [rows, setRows] = useState<IWebPartPropertyRow[]>([]);
   const [editedRows, setEditedRows] = useState<IWebPartPropertyRow[]>([]);
-  const [replaceFrom, setReplaceFrom] = useState(null);
-  const [replaceTo, setReplaceTo] = useState(null);
+  const [replaceFrom, setReplaceFrom] = useState<string | null>(null);
+  const [replaceTo, setReplaceTo] = useState<string | null>(null);
 
   /** Util */
   const escapeForRegex = (s: string) =>
@@ -49,68 +50,92 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   const getGraphClient = async (): Promise<MSGraphClientV3> =>
     await context.msGraphClientFactory.getClient("3");
 
-  /** Load SitePages */
-  const loadAllSitePages = async () => {
+  /** Load Sites */
+  const loadAllSites = async () => {
     setLoading(true);
     try {
       const client = await getGraphClient();
+
+      // 這裡可改成實際邏輯，例如呼叫 Graph API 取多個 site
+      // 範例：目前先只取當前 site
       const sitePath = context.pageContext.site.serverRelativeUrl;
       const site = await client
         .api(`/sites/${window.location.hostname}:${sitePath}`)
         .get();
-      setSiteId(site.id);
 
-      const res: any = await client
-        .api(`/sites/${site.id}/pages/microsoft.graph.sitePage`)
-        .expand("canvasLayout")
-        .get();
+      setSites([{ key: site.id, text: site.name || site.webUrl }]);
+      showMessage("success", `Loaded site: ${site.name || site.webUrl}`);
+    } catch (err) {
+      console.error(err);
+      showMessage("error", `Failed to load sites: ${String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const promises = res.value.map(async (page: any) => {
-        const webpartGraph = `/sites/${site.id}/pages/${page.id}/microsoft.graph.sitePage/webParts`;
-        const wpRes: any = await client.api(webpartGraph).get();
-        return {
-          pageId: page.id,
-          pageName: page.name,
-          value: wpRes.value,
-        };
-      });
+  /** Load SitePages for multiple sites */
+  const loadAllSitePages = async () => {
+    if (!selectedSiteIds.length) {
+      return showMessage("error", "Please select at least one site.");
+    }
+    setLoading(true);
+    try {
+      const client = await getGraphClient();
+      let allItems: IWebPartPropertyRow[] = [];
 
-      const webpartResults = await Promise.all(promises);
-      const allItems: IWebPartPropertyRow[] = webpartResults.flatMap((wp) =>
-        wp.value.map((data: any) => ({
-          pageId: wp.pageId,
-          pageName: wp.pageName,
-          webpartDetails: data,
-          webpartId: data.id,
-          webPartType: data.webPartType,
-          webpartName: data?.data?.title,
-          properties: JSON.stringify(data?.data?.properties),
-          serverProcessedContent: JSON.stringify(
-            data?.data?.serverProcessedContent
-          ),
-          innerHtml: data?.innerHtml,
-          isEditing: false,
-        }))
-      );
+      for (const siteId of selectedSiteIds) {
+        const res: any = await client
+          .api(`/sites/${siteId}/pages/microsoft.graph.sitePage`)
+          .expand("canvasLayout")
+          .get();
+
+        const promises = res.value.map(async (page: any) => {
+          const webpartGraph = `/sites/${siteId}/pages/${page.id}/microsoft.graph.sitePage/webParts`;
+          const wpRes: any = await client.api(webpartGraph).get();
+          return {
+            siteId,
+            pageUrl: page.webUrl,
+            pageId: page.id,
+            pageName: page.name,
+            value: wpRes.value,
+          };
+        });
+
+        const webpartResults = await Promise.all(promises);
+
+        const siteItems: IWebPartPropertyRow[] = webpartResults.flatMap((wp) =>
+          wp.value.map((data: any) => ({
+            siteId: wp.siteId,
+            pageUrl: wp.pageUrl,
+            pageId: wp.pageId,
+            pageName: wp.pageName,
+            webpartDetails: data,
+            webpartId: data.id,
+            webPartType: data.webPartType,
+            webpartName: data?.data?.title,
+            properties: JSON.stringify(data?.data?.properties),
+            serverProcessedContent: JSON.stringify(
+              data?.data?.serverProcessedContent
+            ),
+            innerHtml: data?.innerHtml,
+            isEditing: false,
+          }))
+        );
+
+        allItems = [...allItems, ...siteItems];
+      }
 
       setPages(allItems);
 
-      // unique Page 下拉選單
-      const uniquePages = Array.from(
-        new Map(allItems.map((p) => [p.pageId, p])).values()
-      );
       setPageOptions([
         { key: "ALL", text: "All Pages" },
-        ...uniquePages.map((p) => ({ key: p.pageId!, text: p.pageName! })),
+        ...allItems.map((p) => ({ key: p.pageId!, text: p.pageUrl! })),
       ]);
 
       showMessage("success", `Loaded ${allItems.length} Site Pages Webparts.`);
     } catch (err) {
       console.error(err);
-      showMessage(
-        "error",
-        `Failed to load Site Pages Webparts: ${String(err)}`
-      );
+      showMessage("error", `Failed to load Site Pages: ${String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -147,18 +172,14 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
     );
   };
 
+  /** Replace values */
   const replaceInJson = (obj: any, from: string, to: string): any => {
-    // ✅ 處理字串型別：進行全域替換
     if (typeof obj === "string") {
       return obj.replace(new RegExp(escapeForRegex(from), "g"), to);
     }
-
-    // ✅ 處理陣列：遞迴處理每個元素
     if (Array.isArray(obj)) {
       return obj.map((item) => replaceInJson(item, from, to));
     }
-
-    // ✅ 處理物件：遞迴處理每個 key 對應的 value
     if (obj && typeof obj === "object") {
       return Object.fromEntries(
         Object.entries(obj).map(([key, value]) => [
@@ -167,12 +188,9 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         ])
       );
     }
-
-    // ✅ 其他型別 (數字、布林、null、undefined) 不變
     return obj;
   };
 
-  /** Replace values */
   const handleReplace = () => {
     if (!replaceFrom || !replaceTo)
       return showMessage("error", "Please provide replace-from-to value.");
@@ -193,16 +211,14 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
     showMessage("success", `Replaced ${updated.length} occurrence(s).`);
   };
 
-  /** Save All */
+  /** Save All (multi-site) */
   const saveAllEditedValue = async () => {
     if (!editedRows.length) return;
-
     try {
       setLoading(true);
       const client = await getGraphClient();
 
       for (const item of editedRows) {
-        // 1️⃣ 更新 WebPart
         const body = {
           ...item.webpartDetails,
           data: {
@@ -219,14 +235,14 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
 
         await client
           .api(
-            `/sites/${siteId}/pages/${item.pageId}/microsoft.graph.sitePage/webparts/${item.webpartId}`
+            `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/webparts/${item.webpartId}`
           )
           .headers({ "Content-Type": "application/json" })
           .update(body);
 
         await client
           .api(
-            `/sites/${siteId}/pages/${item.pageId}/microsoft.graph.sitePage/publish`
+            `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/publish`
           )
           .post({ comment: "Batch updated webparts." });
       }
@@ -255,25 +271,18 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
 
     setEditedRows((prev) => {
       const existing = prev.find((r) => r.webpartId === item.webpartId);
-
-      // 如果不存在 → 新增
       if (!existing) {
         return [...prev, { ...item, [key]: newValue }];
       }
-
-      // 如果存在 → 檢查是否有變化
       const hasChanged =
         existing[key] !== newValue ||
         existing.properties !== item.properties ||
         existing.serverProcessedContent !== item.serverProcessedContent;
-
       if (hasChanged) {
         return prev.map((r) =>
           r.webpartId === item.webpartId ? { ...r, [key]: newValue } : r
         );
       }
-
-      // 沒有變化 → 不更新
       return prev;
     });
 
@@ -282,6 +291,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
 
   /** 列設定 */
   const columns: IColumn[] = [
+    { key: "siteId", name: "Site ID", fieldName: "siteId", minWidth: 100 },
     { key: "pageId", name: "Page ID", fieldName: "pageId", minWidth: 100 },
     {
       key: "pageName",
@@ -301,115 +311,15 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
       fieldName: "webpartName",
       minWidth: 80,
     },
-    {
-      key: "innerHtml",
-      name: "InnerHtml",
-      fieldName: EWebPartPropertyRow.innerHtml,
-      minWidth: 250,
-      isMultiline: true,
-      onRender: (item) => (
-        <TextField
-          multiline
-          autoAdjustHeight
-          value={item.innerHtml || ""}
-          onChange={(_, text) =>
-            handleFieldChange("innerHtml", text || "", item)
-          }
-          styles={{
-            fieldGroup: {
-              fontFamily: "monospace",
-              whiteSpace: "pre-wrap", // 保留換行與空格
-              backgroundColor: "#f9f9f9",
-            },
-          }}
-        />
-      ),
-    },
-    {
-      key: "properties",
-      name: "Properties",
-      fieldName: EWebPartPropertyRow.properties,
-      minWidth: 250,
-      isMultiline: true,
-      onRender: (item) => (
-        <ReactJson
-          src={JSON.parse(item.properties ?? "{}")}
-          name={false}
-          collapsed={true}
-          displayDataTypes={false}
-          theme="rjv-default"
-          onEdit={(edit) =>
-            handleFieldChange(
-              "properties",
-              JSON.stringify(edit.updated_src, null, 2),
-              item
-            )
-          }
-          onAdd={(add) =>
-            handleFieldChange(
-              "properties",
-              JSON.stringify(add.updated_src, null, 2),
-              item
-            )
-          }
-          onDelete={(del) =>
-            handleFieldChange(
-              "properties",
-              JSON.stringify(del.updated_src, null, 2),
-              item
-            )
-          }
-        />
-      ),
-    },
-    {
-      key: "serverProcessedContent",
-      name: "ServerProcessedContent",
-      fieldName: EWebPartPropertyRow.serverProcessedContent,
-      minWidth: 250,
-      isMultiline: true,
-      onRender: (item) => (
-        <ReactJson
-          src={JSON.parse(item.serverProcessedContent ?? "{}")}
-          name={false}
-          collapsed={true}
-          displayDataTypes={false}
-          theme="rjv-default"
-          onEdit={(edit) =>
-            handleFieldChange(
-              "serverProcessedContent",
-              JSON.stringify(edit.updated_src, null, 2),
-              item
-            )
-          }
-          onAdd={(add) =>
-            handleFieldChange(
-              "serverProcessedContent",
-              JSON.stringify(add.updated_src, null, 2),
-              item
-            )
-          }
-          onDelete={(del) =>
-            handleFieldChange(
-              "serverProcessedContent",
-              JSON.stringify(del.updated_src, null, 2),
-              item
-            )
-          }
-        />
-      ),
-    },
   ].map((c) => ({ ...c, isResizable: true }));
 
-  /** 搜尋處理 */
   const clearSearch = useCallback(() => setSearchKey(""), []);
 
   const filtered = useMemo(
     () => filterArrayColumnByKeyword(rows, searchKey),
     [rows, searchKey, filterArrayColumnByKeyword]
   );
-  console.log("Filtered Rows", filtered);
-  console.log("Edited Rows", editedRows);
+
   return (
     <Stack
       className={styles.webpartSetting}
@@ -444,18 +354,30 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
           {message.text}
         </MessageBar>
       )}
-
-      <Stack
-        horizontal
-        tokens={{ childrenGap: 12 }}
-        verticalAlign="end"
-        styles={{ root: { position: "relative" } }}
-      >
+      <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="end">
         <PrimaryButton
-          text="Load Site Pages"
-          onClick={loadAllSitePages}
+          text="Load All Site"
+          onClick={loadAllSites}
           disabled={loading}
         />
+        <Dropdown
+          styles={{ root: { flex: 1 }, dropdown: { minWidth: 380 } }}
+          options={sites}
+          selectedKeys={selectedSiteIds}
+          onChange={(_, opt) => {
+            if (opt?.selected) {
+              setSelectedSiteIds((prev) => [...prev, opt.key as string]);
+            } else {
+              setSelectedSiteIds((prev) => prev.filter((k) => k !== opt.key));
+            }
+          }}
+          placeholder="All or single site"
+          multiSelect
+        />
+        <PrimaryButton text="Load Pages" onClick={loadAllSitePages} />
+      </Stack>
+
+      <Stack horizontal tokens={{ childrenGap: 12 }} verticalAlign="end">
         <Dropdown
           styles={{ root: { flex: 1 }, dropdown: { minWidth: 380 } }}
           options={pageOptions}
@@ -466,12 +388,12 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         <PrimaryButton
           text="Parse Page(s)"
           onClick={parsePages}
-          disabled={loading || !pageOptions.length}
+          disabled={!pageOptions.length}
         />
         <PrimaryButton
           text="Save All Change"
           onClick={saveAllEditedValue}
-          disabled={loading || !pageOptions.length}
+          disabled={!pageOptions.length}
         />
       </Stack>
 
@@ -480,9 +402,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         horizontalAlign="space-between"
         tokens={{ childrenGap: 16 }}
       >
-        <Text variant="xLarge" styles={{ root: { width: "auto" } }}>
-          Keyword Search:
-        </Text>
+        <Text variant="xLarge">Keyword Search:</Text>
         <SearchBox
           value={searchKey}
           placeholder="Input Key word ..."
@@ -498,13 +418,13 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
         <TextField
           styles={{ root: { flex: 1 } }}
           placeholder="Replace From"
-          value={replaceFrom}
+          value={replaceFrom ?? ""}
           onChange={(_, v) => setReplaceFrom(v || null)}
         />
         <TextField
           styles={{ root: { flex: 1 } }}
           placeholder="Replace To"
-          value={replaceTo}
+          value={replaceTo ?? ""}
           onChange={(_, v) => setReplaceTo(v || null)}
         />
         <PrimaryButton text="Replace All" onClick={handleReplace} />
