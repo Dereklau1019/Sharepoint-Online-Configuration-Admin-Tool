@@ -27,6 +27,21 @@ import {
 
 type MessageType = { type: "info" | "error" | "success"; text: string };
 
+const removeEndWithODataContextProps = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(removeEndWithODataContextProps);
+  } else if (obj && typeof obj === "object") {
+    const newObj: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (!key.endsWith("@odata.context")) {
+        newObj[key] = removeEndWithODataContextProps(value);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+};
+
 export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<MessageType | null>(null);
@@ -99,6 +114,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
             .expand("canvasLayout")
             .get();
 
+          console.log("res", res);
           // 取得每個 page 的 webparts
           const webpartResults = await Promise.all(
             res.value.map(async (page: any) => {
@@ -107,20 +123,22 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
                   `/sites/${siteId}/pages/${page.id}/microsoft.graph.sitePage/webParts`
                 )
                 .get();
-
+              console.log("wpRes", wpRes);
               // 回傳整理好的 webpart 資料
               return wpRes.value.map((data: any) => ({
-                siteId,
+                pageFullDetails: page,
+                canvasLayout: page.canvasLayout,
+                siteId: siteId,
                 pageUrl: page.webUrl,
                 pageId: page.id,
                 pageName: page.name,
                 webpartDetails: data,
-                webpartId: data.id,
-                webPartType: data.webPartType,
-                webpartName: data?.data?.title,
-                properties: stringifySafe(data?.data?.properties),
+                webpartId: data?.id,
+                webPartType: data?.webPartType,
+                webPartName: data?.title,
+                properties: stringifySafe(data?.properties),
                 serverProcessedContent: stringifySafe(
-                  data?.data?.serverProcessedContent
+                  data?.serverProcessedContent
                 ),
                 innerHtml: data?.innerHtml,
               }));
@@ -247,20 +265,51 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
 
       for (const item of editedRows) {
         try {
+          const {
+            pageFullDetails,
+            canvasLayout,
+            webpartId,
+            webpartDetails,
+            properties,
+            serverProcessedContent,
+            innerHtml,
+          } = item;
+
           // 1️⃣ 更新 WebPart Body
           const body = {
-            ...item.webpartDetails,
+            ...webpartDetails,
             data: {
-              ...item.webpartDetails.data,
-              properties: item.properties
-                ? JSON.parse(item.properties)
-                : item.properties,
-              serverProcessedContent: item.serverProcessedContent
-                ? JSON.parse(item.serverProcessedContent)
-                : item.serverProcessedContent,
+              //...webpartDetails.data,
+              properties: properties ? JSON.parse(properties) : properties,
+              serverProcessedContent: serverProcessedContent
+                ? JSON.parse(serverProcessedContent)
+                : serverProcessedContent,
             },
-            innerHtml: item.innerHtml,
+            innerHtml: innerHtml,
           };
+
+          // let UpdatedCanvasLayout = canvasLayout;
+          // for (const [
+          //   sectionIndex,
+          //   section,
+          // ] of UpdatedCanvasLayout.horizontalSections.entries()) {
+          //   for (const [columnIndex, column] of section.columns.entries()) {
+          //     for (const [webpartIndex, webpart] of column.webparts.entries()) {
+          //       if (webpart.id === webpartId) {
+          //         UpdatedCanvasLayout.horizontalSections[sectionIndex].columns[
+          //           columnIndex
+          //         ].webparts[webpartIndex] = body;
+          //       }
+          //     }
+          //   }
+          // }
+
+          // UpdatedCanvasLayout = removeEndWithODataContextProps({
+          //   ...UpdatedCanvasLayout,
+          //   horizontalSections: UpdatedCanvasLayout?.horizontalSections.filter(
+          //     (d) => d.layout !== "flexible"
+          //   ),
+          // });
 
           await client
             .api(
@@ -269,25 +318,54 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
             .headers({ "Content-Type": "application/json" })
             .update(body);
 
+          // let updatedPage = {
+          //   ...pageFullDetails,
+          //   canvasLayout: UpdatedCanvasLayout,
+          // };
+
+          // delete updatedPage["contentType"];
+          // delete updatedPage["createdBy"];
+          // delete updatedPage["lastModifiedBy"];
+          // delete updatedPage["parentReference"];
+          // delete updatedPage["publishingState"];
+          // delete updatedPage["pageLayout"];
+          // delete updatedPage["createdDateTime"];
+          // delete updatedPage["lastModifiedDateTime"];
+          // delete updatedPage["reactions"];
+          // delete updatedPage["eTag"];
+          // delete updatedPage["id"];
+          // delete updatedPage["name"];
+          // delete updatedPage["webUrl"];
+
+          // console.log("removeEndWithODataContextProps", updatedPage);
+
+          // await client
+          //   .api(
+          //     `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage`
+          //   )
+          //   .headers({
+          //     "Content-Type": "application/json",
+          //     Accept: "application/json;odata.metadata=none",
+          //   })
+          //   .update(updatedPage);
+
           await client
             .api(
               `/sites/${item.siteId}/pages/${item.pageId}/microsoft.graph.sitePage/publish`
             )
             .post({ comment: "Batch updated webparts." });
-          resultMessage += `Edited webpart [${item.webpartName}] saved successfully.`;
-          showMessage(
-            "success",
-            `Edited webpart [${item.webpartName}] saved successfully.`
-          );
+
+          resultMessage += `Edited webpart [${item.webPartName}] saved successfully.`;
+          showMessage("success", resultMessage);
         } catch (error) {
           console.error(error);
           resultMessage += `Failed to save webpart ${
-            item.webpartName
+            item.webPartName
           } changes: ${error.toString()}`;
           showMessage(
             "error",
             `Failed to save webpart ${
-              item.webpartName
+              item.webPartName
             } changes: ${error.toString()}`
           );
         }
@@ -295,10 +373,9 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
       setEditedRows([]);
     } catch (err) {
       console.error(err);
-      resultMessage += `! ! !Failed to save changes : ${String(err)}`;
-      showMessage("error", `! ! !Failed to save changes: ${String(err)}`);
+      resultMessage += `Failed to save changes : ${String(err)}`;
+      showMessage("error", resultMessage);
     } finally {
-      showMessage("success", resultMessage);
       setLoading(false);
     }
   };
@@ -344,7 +421,7 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
     });
 
     // ✅ 避免太頻繁提示，可以 debounce 或只在變更完成後提示
-    showMessage("success", `Edited ${item.webpartName} (${item.webpartId}).`);
+    showMessage("success", `Edited ${item.webPartName} (${item.webpartId}).`);
   };
 
   /** 列設定 */
@@ -462,9 +539,9 @@ export const WebpartSetting: React.FC<IWebpartSettingProps> = ({ context }) => {
       minWidth: 100,
     },
     {
-      key: "webpartName",
+      key: "webPartName",
       name: "WebPart Name",
-      fieldName: "webpartName",
+      fieldName: "webPartName",
       minWidth: 80,
     },
   ].map((c) => ({ ...c, isResizable: true }));

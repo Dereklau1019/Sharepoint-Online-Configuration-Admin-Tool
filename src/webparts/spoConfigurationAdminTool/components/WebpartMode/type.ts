@@ -7,6 +7,8 @@ export interface IWebpartSettingProps {
 }
 
 export enum EWebPartPropertyRow {
+  pageFullDetails = "pageFullDetails",
+  canvasLayout = "canvasLayout",
   siteId = "siteId",
   pageUrl = "pageUrl",
   pageId = "pageId",
@@ -14,13 +16,15 @@ export enum EWebPartPropertyRow {
   webpartDetails = "webpartDetails",
   webpartId = "webpartId",
   webPartType = "webPartType",
-  webpartName = "webpartName",
+  webPartName = "webPartName",
   innerHtml = "innerHtml",
   properties = "properties",
   serverProcessedContent = "serverProcessedContent",
 }
 
 export interface IWebPartPropertyRow {
+  [EWebPartPropertyRow.pageFullDetails]?: { [key: string]: any };
+  [EWebPartPropertyRow.canvasLayout]?: { [key: string]: any };
   [EWebPartPropertyRow.siteId]?: string;
   [EWebPartPropertyRow.pageUrl]?: string;
   [EWebPartPropertyRow.pageId]?: string;
@@ -28,7 +32,7 @@ export interface IWebPartPropertyRow {
   [EWebPartPropertyRow.webpartId]?: string;
   [EWebPartPropertyRow.webPartType]?: string;
   [EWebPartPropertyRow.webpartDetails]?: any;
-  [EWebPartPropertyRow.webpartName]?: string;
+  [EWebPartPropertyRow.webPartName]?: string;
   [EWebPartPropertyRow.innerHtml]?: string;
   [EWebPartPropertyRow.properties]?: string;
   [EWebPartPropertyRow.serverProcessedContent]?: string;
